@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -66,6 +66,7 @@ fn main() {
 
     counter_example();
     no_locks_with_channels();
+    read_optimize();
 
 
 
@@ -280,4 +281,42 @@ fn no_locks_with_channels() {
         let received = rx.recv().unwrap();
         println!("Received: {}", received);
     }
+}
+
+//this is used to delay so threading read/writes will overlap 
+fn sleep(timems: u64)
+{
+            let timems = rand::random_range(0..timems);
+            println!("sleep time ms is : {}", timems);
+            //sleep between 0 and 20 seconds so there is read / write overlap
+            thread::sleep(Duration::from_millis(timems));
+}
+
+fn read_optimize() {
+    let lock = Arc::new(RwLock::new(5));
+
+    // Create 10 reader threads
+    let handles: Vec<_> = (0..10).map(|_| {
+        let lock = Arc::clone(&lock);
+        thread::spawn(move || {
+            sleep(150);
+            let r = lock.read().unwrap();
+            println!("Reader got: {}", *r);
+        })
+    }).collect();
+
+    // Single writer thread
+    {
+        sleep(75);
+        println!("Locking to write!");
+        let mut w = lock.write().unwrap();
+        *w += 1;
+    }
+
+    // Join reader threads
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    println!("Final value: {}", *lock.read().unwrap());
 }
