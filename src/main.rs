@@ -8,6 +8,9 @@ use rayon::prelude::*;
 
 use std::time::Instant;
 
+use tokio::runtime::Runtime;
+
+
 //FROM: https://www.slingacademy.com/article/introduction-to-concurrency-in-rust-understanding-the-basics/
 
 /*
@@ -96,7 +99,13 @@ fn main() {
     println!("Elapsed: {:.2?}", elapsed);
     println!("parallel sum of squares: {}", result);
 
+    tokio_runtime_block_on_example();
 
+    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
+    rt.block_on(main_task());
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(process_io_bound());
 
 }
 
@@ -232,7 +241,7 @@ fn transit() {
             tx.send(val).unwrap();
             thread::sleep(Duration::from_secs(1));
         }
-    });
+    }); 
 
     for received in rx {
         println!("Got: {}", received);
@@ -277,7 +286,7 @@ fn counter_example() {
 
     for _ in 0..10 {
         let counter = Arc::clone(&counter);
-        let handle = thread::spawn(move || {
+        let handle = thread::spawn(move || { 
             let mut num = counter.lock().unwrap();
             *num += 1;
         });
@@ -358,4 +367,60 @@ fn parallel_sum_of_squares(numbers: &[u128]) -> u128 {
     numbers.par_iter().map(|&x| x * x).sum()
 }
 
+//ran cargo add tokio --features full
 
+fn tokio_runtime_block_on_example() {
+    let rt = Runtime::new().unwrap();
+    thread::spawn(move || {
+        rt.block_on(async {
+            let now = Instant::now();
+            // Simulate a long blocking operation
+            println!("Blocking task started");
+            let _result = long_computation().await;
+            println!("Blocking task completed");
+            let elapsed = now.elapsed();
+            println!("Elapsed: {:.2?}", elapsed);
+        });
+    }).join().unwrap();
+}
+
+async fn long_computation() -> i32 {
+    // Emulates a long computation
+    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    10
+}
+
+
+use tokio::runtime::Builder;
+use tokio::task;
+
+async fn main_task() {
+    println!("Main task started");
+    let result = tokio::join!(quick_task(), quick_task());
+    println!("Main task result: {:?}", result);
+}
+
+async fn quick_task() -> &'static str {
+    println!("Quick task running");
+    // A short non-blocking delay
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    println!("Done running quick task");
+    "Done"
+}
+
+/*
+when some operations block inherently
+
+The spawn_blocking utility allows you to run blocking operations on a specialized thread which is different from the async task's thread. This technique ensures the task does not block the async runtime's main loop.
+*/
+
+async fn process_io_bound() {
+    let result = task::spawn_blocking(|| {
+        println!("Starting blocking I/O");
+        // Long blocking I/O operation, e.g., file processing
+        std::thread::sleep(std::time::Duration::from_secs(5));
+        "Finished processing I/O"
+    }).await.expect("The task failed to complete");
+    println!("{}
+", result);
+}
