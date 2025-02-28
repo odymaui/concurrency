@@ -3,6 +3,11 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
+use rayon::iter::IntoParallelRefIterator;
+use rayon::prelude::*;
+
+use std::time::Instant;
+
 //FROM: https://www.slingacademy.com/article/introduction-to-concurrency-in-rust-understanding-the-basics/
 
 /*
@@ -67,6 +72,29 @@ fn main() {
     counter_example();
     no_locks_with_channels();
     read_optimize();
+
+
+    //sequential vs parallel    
+
+    let now = Instant::now();
+
+    let numbers: Vec<u128> = (1..10_000_000).collect();
+    let result = sum_of_squares(&numbers);
+
+    let elapsed = now.elapsed();
+    println!("Elapsed: {:.2?}", elapsed);
+
+    println!("Sequential sum of squares: {}", result);
+
+
+    let now = Instant::now();
+
+    let numbers: Vec<u128> = (1..10_000_000).collect();
+    let result = parallel_sum_of_squares(&numbers);
+
+    let elapsed = now.elapsed();
+    println!("Elapsed: {:.2?}", elapsed);
+    println!("parallel sum of squares: {}", result);
 
 
 
@@ -320,3 +348,14 @@ fn read_optimize() {
 
     println!("Final value: {}", *lock.read().unwrap());
 }
+
+
+fn sum_of_squares(numbers: &[u128]) -> u128 {
+    numbers.iter().map(|&x| x * x).sum()
+}
+
+fn parallel_sum_of_squares(numbers: &[u128]) -> u128 {
+    numbers.par_iter().map(|&x| x * x).sum()
+}
+
+
