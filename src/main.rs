@@ -9,7 +9,10 @@ use rayon::prelude::*;
 use std::time::Instant;
 
 use tokio::runtime::Runtime;
+use tokio::runtime::Builder;
+use tokio::task;
 
+use futures::join;
 
 //FROM: https://www.slingacademy.com/article/introduction-to-concurrency-in-rust-understanding-the-basics/
 
@@ -77,7 +80,7 @@ fn main() {
     read_optimize();
 
 
-    //sequential vs parallel    
+    //sequential vs parallel    await
 
     let now = Instant::now();
 
@@ -101,11 +104,11 @@ fn main() {
 
     tokio_runtime_block_on_example();
 
-    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
-    rt.block_on(main_task());
+    tokio_run_blocking_examples();
 
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on(process_io_bound());
+    tokio_sequential_tasks();
+
+    combined_task();
 
 }
 
@@ -390,10 +393,6 @@ async fn long_computation() -> i32 {
     10
 }
 
-
-use tokio::runtime::Builder;
-use tokio::task;
-
 async fn main_task() {
     println!("Main task started");
     let result = tokio::join!(quick_task(), quick_task());
@@ -423,4 +422,43 @@ async fn process_io_bound() {
     }).await.expect("The task failed to complete");
     println!("{}
 ", result);
+}
+
+fn tokio_run_blocking_examples() {
+
+    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
+    rt.block_on(main_task());
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(process_io_bound());
+}
+
+//note sequence and where starting output for tasks are shown vs in between message!
+
+fn tokio_sequential_tasks() {
+
+    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
+
+    let result1 = rt.spawn(quick_task());
+    println!("In between seq tasks!");
+    let result2 = rt.spawn(quick_task());
+
+    let result1 = rt.block_on(result1);
+    let result2 = rt.block_on(result2);
+
+    println!("Results: {} and {}", result1.unwrap(), result2.unwrap());
+
+}
+
+fn combined_task() {
+
+    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
+    let (result1, result2) = futures::executor::block_on(
+                                                            rt.spawn( async {
+                                                                                        join!(quick_task(), quick_task())
+                                                                                    } 
+                                                                    ) 
+                                                        ).unwrap();
+
+    println!("Fetched data: {} and {}", result1, result2);
 }
