@@ -12,7 +12,8 @@ use tokio::runtime::Runtime;
 use tokio::runtime::Builder;
 use tokio::task;
 
-use futures::join;
+//disabled for now see ~line 472
+//use futures::future::{join, join_all};
 
 //FROM: https://www.slingacademy.com/article/introduction-to-concurrency-in-rust-understanding-the-basics/
 
@@ -109,6 +110,8 @@ fn main() {
     tokio_sequential_tasks();
 
     combined_task();
+
+    //futures::executor::block_on( async { combined_task() });
 
 }
 
@@ -411,6 +414,9 @@ async fn quick_task() -> &'static str {
 when some operations block inherently
 
 The spawn_blocking utility allows you to run blocking operations on a specialized thread which is different from the async task's thread. This technique ensures the task does not block the async runtime's main loop.
+
+Need to pin them?  https://stackoverflow.com/questions/71070434/expected-async-block-found-a-different-async-block
+
 */
 
 async fn process_io_bound() {
@@ -455,10 +461,53 @@ fn combined_task() {
     let rt = Builder::new_multi_thread().enable_all().build().unwrap();
     let (result1, result2) = futures::executor::block_on(
                                                             rt.spawn( async {
-                                                                                        join!(quick_task(), quick_task())
+                                                                tokio::join!(quick_task(), quick_task())
                                                                                     } 
                                                                     ) 
                                                         ).unwrap();
 
     println!("Fetched data: {} and {}", result1, result2);
 }
+
+//from:  https://www.slingacademy.com/article/pinning-and-the-future-trait-in-async-rust/
+//but not working...
+/*
+error[E0308]: mismatched types
+   --> src/main.rs:487:36
+    |
+476 |     let a = async { 42 };
+    |             ----- the expected `async` block
+...
+484 |     let b = async { 43 };
+    |             ----- the found `async` block
+...
+487 |     let results = join_all(vec![a, b, c]).await;
+    |                                    ^ expected `async` block, found a different `async` block
+    |
+    = note: expected `async` block `{async block@src/main.rs:476:13: 476:18}`
+               found `async` block `{async block@src/main.rs:484:13: 484:18}`
+    = note: no two async blocks, even if identical, have the same type
+    = help: consider pinning your async block and casting it to a trait object
+
+For more information about this error, try `rustc --explain E0308`.
+
+
+async fn handle_async() {
+    let a = async { 42 };
+    /*
+    let b = async { 
+        //tokio::time::sleep(std::time::Duration::from_secs(2)).await; 
+        //return 43;
+        43
+    };
+    */
+    let b = async { 43 };
+    let c = async { 44 };
+
+    let results = join_all(vec![a, b, c]).await;
+
+    for result in results {
+        println!("Result: {result}");
+    }
+}
+*/
