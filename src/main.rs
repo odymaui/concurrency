@@ -14,6 +14,10 @@ use tokio::task;
 
 //disabled for now see ~line 472
 //use futures::future::{join, join_all};
+use futures::future::{join_all};
+use futures::Future;
+use std::pin::Pin;
+
 
 //FROM: https://www.slingacademy.com/article/introduction-to-concurrency-in-rust-understanding-the-basics/
 
@@ -111,7 +115,7 @@ fn main() {
 
     combined_task();
 
-    //futures::executor::block_on( async { combined_task() });
+    futures::executor::block_on( handle_async() );
 
 }
 
@@ -415,8 +419,6 @@ when some operations block inherently
 
 The spawn_blocking utility allows you to run blocking operations on a specialized thread which is different from the async task's thread. This technique ensures the task does not block the async runtime's main loop.
 
-Need to pin them?  https://stackoverflow.com/questions/71070434/expected-async-block-found-a-different-async-block
-
 */
 
 async fn process_io_bound() {
@@ -471,6 +473,11 @@ fn combined_task() {
 
 //from:  https://www.slingacademy.com/article/pinning-and-the-future-trait-in-async-rust/
 //but not working...
+
+//not working because async blocks are each different.   need to pin as type
+
+//Need to pin them?  https://stackoverflow.com/questions/71070434/expected-async-block-found-a-different-async-block
+
 /*
 error[E0308]: mismatched types
    --> src/main.rs:487:36
@@ -490,7 +497,7 @@ error[E0308]: mismatched types
     = help: consider pinning your async block and casting it to a trait object
 
 For more information about this error, try `rustc --explain E0308`.
-
+*/
 
 async fn handle_async() {
     let a = async { 42 };
@@ -504,10 +511,16 @@ async fn handle_async() {
     let b = async { 43 };
     let c = async { 44 };
 
-    let results = join_all(vec![a, b, c]).await;
+
+let futures: [Pin<Box<dyn Future<Output = i32>>>; 3] = [
+        Box::pin(a),
+        Box::pin(b),
+        Box::pin(c),
+    ];
+
+    let results = join_all(futures).await;
 
     for result in results {
-        println!("Result: {result}");
+        println!("Result: {result:?}");
     }
 }
-*/
