@@ -18,6 +18,7 @@ use futures::future::{join_all};
 use futures::Future;
 use std::pin::Pin;
 
+use std::io::{ stdout, Write};
 
 //FROM: https://www.slingacademy.com/article/introduction-to-concurrency-in-rust-understanding-the-basics/
 
@@ -39,6 +40,7 @@ fn main() {
 //The Mutex (mutual exclusion) ensures that only one thread can access the data at a time. The Arc (atomic reference counting) enables multiple owners of the same piece of data. Here's an example:
 
 //In this code, Arc (Atomic Reference Counting) is used to allow multiple ownership over a single piece of data. Combine it with Mutex to ensure that only one thread accesses the data at a time, preventing data races.
+//can't be an async func with tokio because can't have nested runtimes...
 fn main() {
     let data = Arc::new(Mutex::new(0));
 
@@ -117,6 +119,34 @@ fn main() {
 
     futures::executor::block_on( handle_async() );
 
+    //note delay in between to show no work done since pending await
+    tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on( async {
+        say_hello().await;
+        // An async sleep function, puts the current task to sleep for 1s.
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        say_world().await;
+    });
+
+
+        // note you should see no delay but in different orders!
+        tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on( async {
+        tokio::spawn(say_hello());
+        tokio::spawn(say_world());
+        // Wait for a while to give the tasks time to run.
+        tokio::time::sleep(Duration::from_millis(300)).await;
+
+        for _ in 0..15 {
+            let handle1 = tokio::spawn(say_hello());
+            let handle2 = tokio::spawn(say_world());
+            
+            //note what happens if you comment these out...  no hello worlds!
+            let _ = handle1.await;
+            let _ = handle2.await;
+        
+            println!("!");
+        }
+
+        });
 }
 
 //a vector is moved into a thread using the move keyword, transferring its ownership to the thread, thus avoiding data races.
@@ -523,4 +553,16 @@ let futures: [Pin<Box<dyn Future<Output = i32>>>; 3] = [
     for result in results {
         println!("Result: {result:?}");
     }
+}
+
+async fn say_hello() {
+    print!("hello, ");
+    // Flush stdout so we see the effect of the above `print` immediately.
+    stdout().flush().unwrap();
+}
+
+async fn say_world() {
+    println!("world!");
+        // Flush stdout so we see the effect of the above `print` immediately.
+        stdout().flush().unwrap();
 }
