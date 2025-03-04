@@ -42,10 +42,12 @@ fn main() {
 //In this code, Arc (Atomic Reference Counting) is used to allow multiple ownership over a single piece of data. Combine it with Mutex to ensure that only one thread accesses the data at a time, preventing data races.
 //can't be an async func with tokio because can't have nested runtimes...
 fn main() {
-
+    println_header("Running: run_threaded_code()");
     run_threaded_code();
 
     let data = Arc::new(Mutex::new(0));
+
+    println_header("Running: looped map with incremented value()");
 
     let handles: Vec<_> = (0..10).map(|i| {
         println!("Hello from range map! {}", i);
@@ -64,14 +66,20 @@ fn main() {
 
     //Thus, the short version is: the result of locking a mutex is a "smart pointer" wrapping the actual value, not the value itself. Thus you have to dereference it to access the value. https://stackoverflow.com/questions/46314582/confusing-automatic-dereferencing-of-arc
 
-    println!("Shared number: {}", *data.lock().unwrap());
+    println_header(format!("Shared number: {}", *data.lock().unwrap()).as_str());
 
+    println_header("Running: move_example()");
     move_example();
+    println_header("Running: channel_handle()");
     channel_handle();
+    println_header("Running: move_take_ownership()");
     move_take_ownership();
+    println_header("Running: move_string_btw_threads()");
     move_string_btw_threads();
+    println_header("Running: multiple_messages()");
     multiple_messages();
 
+    println_header("Running: transit()");
     transit();
 
     if false {  //don't do it unless needed for following code to run...
@@ -85,11 +93,15 @@ fn main() {
         }
     }
 
+    println_header("Running: counter_example()");
     counter_example();
+    println_header("Running: no_locks_with_channels()");
     no_locks_with_channels();
+    println_header("Running: read_optimize()");
     read_optimize();
 
 
+    println_header("Running: Sequential and Parallel sum of squares");
     //sequential vs parallel    await
 
     let now = Instant::now();
@@ -112,15 +124,20 @@ fn main() {
     println!("Elapsed: {:.2?}", elapsed);
     println!("parallel sum of squares: {}", result);
 
+    println_header("Running: tokio_runtime_block_on_example()");
     tokio_runtime_block_on_example();
-
+    println_header("Running: tokio_run_blocking_examples()");
     tokio_run_blocking_examples();
-
+    println_header("Running: tokio_sequential_tasks()");
     tokio_sequential_tasks();
-
+    println_header("Running: combined_task()");
     combined_task();
 
+    println_header("Running: futures executor block_on()");
     futures::executor::block_on( handle_async() );
+
+    println_header("Running: Tokio spawn stuff");
+
 
     //note delay in between to show no work done since pending await
     tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on( async {
@@ -150,6 +167,12 @@ fn main() {
         }
 
         });
+}
+
+fn println_header(header: &str) {
+    let length: usize = header.len(); 
+    let str = "*".repeat(length + 4);
+    println!("\n{str}\n* {header} *\n{str}\n");
 }
 
 fn run_threaded_code() {
@@ -483,17 +506,17 @@ async fn process_io_bound() {
         std::thread::sleep(std::time::Duration::from_secs(5));
         "Finished processing I/O"
     }).await.expect("The task failed to complete");
-    println!("{}
-", result);
+    println!("{}", result);
 }
 
 fn tokio_run_blocking_examples() {
-
+    println!("Tokio run blocking thread/IO");
     let rt = Builder::new_multi_thread().enable_all().build().unwrap();
     rt.block_on(main_task());
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(process_io_bound());
+    println!("Done with Tokio run blocking thread/IO");
 }
 
 //note sequence and where starting output for tasks are shown vs in between message!
