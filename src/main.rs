@@ -20,7 +20,8 @@ use std::pin::Pin;
 
 use std::io::{ stdout, Write};
 
-//FROM: https://www.slingacademy.com/article/introduction-to-concurrency-in-rust-understanding-the-basics/
+//Originally FROM: https://www.slingacademy.com/article/introduction-to-concurrency-in-rust-understanding-the-basics/
+//but later added info from other sources..
 
 /*
 fn main() {
@@ -284,9 +285,11 @@ fn multiple_messages() {
             println!("Ended sending message: {}", i);
         });
     }
-    //why is this needed to get for loop to finish?
-    //because the original tx is never disposed/dropped, only the 5 cloned due to thread scope out of scope drop?
-    //drop(tx);
+    /*
+    why is this needed to get for loop to finish?
+    because the original tx is never disposed/dropped, only the 5 cloned due to thread scope out of scope drop?
+    drop(tx);
+    */
 
     //THIS CAN NEVER FINISH because source tx is not dropped only the cloned tx's?
     //unless you explicitly drop or only take a many as sent!
