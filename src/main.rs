@@ -174,7 +174,7 @@ fn println_header(header: &str) {
     let str = "*".repeat(length + 4);
     println!("\n{str}\n* {header} *\n{str}\n");
 }
-
+#[allow(unused)]
 fn run_threaded_code() {
     //what happens?
     let mut n = 1;
