@@ -42,6 +42,9 @@ fn main() {
 //In this code, Arc (Atomic Reference Counting) is used to allow multiple ownership over a single piece of data. Combine it with Mutex to ensure that only one thread accesses the data at a time, preventing data races.
 //can't be an async func with tokio because can't have nested runtimes...
 fn main() {
+
+    run_threaded_code();
+
     let data = Arc::new(Mutex::new(0));
 
     let handles: Vec<_> = (0..10).map(|i| {
@@ -147,6 +150,28 @@ fn main() {
         }
 
         });
+}
+
+fn run_threaded_code() {
+    //what happens?
+    let mut n = 1;
+
+    let t = thread::spawn(move || {
+
+        n = n + 1;
+
+        thread::spawn(move || {
+            n = n + 1;
+        })
+
+    });
+
+    n = n + 1;
+
+    t.join().unwrap().join().unwrap();
+
+    //n has copy trait so the threads move a copy of n which mutate the copy and lost 
+    println!("threaded result multiple increments: {n}");
 }
 
 //a vector is moved into a thread using the move keyword, transferring its ownership to the thread, thus avoiding data races.
