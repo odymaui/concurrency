@@ -80,6 +80,9 @@ fn main() {
     println_header("Running: multiple_messages()");
     multiple_messages();
 
+    println_header("Running tokio_multiple_tasks");
+    tokio_multiple_tasks();
+
     println_header("Running: transit()");
     transit();
 
@@ -265,12 +268,18 @@ fn move_string_btw_threads() {
     println!("Got: {received}");
 }
 
+//do the next two functions work only because there is code that runs after it?
+//if they were the only things in main would the thread end early and kill the rest of processing?
+
 fn multiple_messages() {
     let (tx, rx) = mpsc::channel();
 
     let counter = Arc::new(Mutex::new(0));
 
     let cnt = 5;
+
+//odd the recieve messages are received in sequential order?
+//note next example below is not sequential  
 
     for i in 0..cnt {
         let tx = tx.clone();
@@ -300,6 +309,52 @@ fn multiple_messages() {
     println!("Total Number of messages: {}", counter.lock().unwrap());
 
     println!("Ended multiple messages.");
+}
+
+
+fn tokio_multiple_tasks() {
+
+    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
+
+    let (tx, rx) = mpsc::channel();
+
+    let counter = Arc::new(tokio::sync::Mutex::new(0));
+
+    let cnt = 5;
+
+//odd the received message are not all sequential?
+
+    for i in 0..cnt {
+        let tx = tx.clone();
+        let counter = Arc::clone(&counter);
+        println!("Task Sending message: {}", i);
+        rt.spawn( async move {
+            let mut num = counter.lock().await;
+            *num += 1;
+            let message = format!("Message {}", i);
+            tx.send(message).unwrap();
+            tokio::time::sleep(Duration::from_millis(1000)).await;
+            println!("Ended task sending message: {}", i);
+        });
+    }
+
+
+    /*
+    why is this needed to get for loop to finish?
+    because the original tx is never disposed/dropped, only the 5 cloned due to thread scope out of scope drop?
+    drop(tx);
+    */
+
+    //THIS CAN NEVER FINISH because source tx is not dropped only the cloned tx's?
+    //unless you explicitly drop or only take a many as sent!
+    for received in rx.iter().take(cnt) {
+        println!("Task Received: {}", received);
+    }
+
+    println!("Total Task Number of messages: {}", counter.blocking_lock());
+
+    println!("Ended multiple task messages.");
+
 }
 
 fn transit() {
