@@ -171,6 +171,14 @@ fn main() {
         }
 
         });
+
+        println_header("wrap a value in a thread safe way as well as update and prevent blocked locks");
+        let v = ThreadSafeInt::new(7);
+        v.add_with_extras(7);
+        v.printit();
+        v.add(5);
+        v.printit();
+
 }
 
 fn println_header(header: &str) {
@@ -446,8 +454,8 @@ fn counter_example() {
     println!("Result: {}", *counter.lock().unwrap());
 }
 
-fn no_locks_with_channels() {
-    let (tx, rx) = mpsc::channel();
+    fn no_locks_with_channels() {
+        let (tx, rx) = mpsc::channel();
 
     for i in 0..5 {
         let tx_clone = tx.clone();
@@ -672,3 +680,57 @@ async fn say_world() {
         // Flush stdout so we see the effect of the above `print` immediately.
         stdout().flush().unwrap();
 }
+
+
+//deref option and unlock wrapped values in a local method
+struct ThreadSafeInt {
+    value: Mutex<i32>,
+}
+
+impl ThreadSafeInt {
+    fn new(val: i32) -> Self {
+        Self {
+            value: Mutex::new(val),
+        }
+    }
+    fn add(&self, delta: i32) {
+        let mut v = self.value.lock().unwrap();
+        *v += delta;
+    }
+}
+
+impl ThreadSafeInt {
+    fn add_with_extras(&self, delta: i32) {
+        // ... more code here that doesn't need the lock
+        
+        //maintain a copy of the int for this method
+        let mut v = 0;
+        //scope and unlock the wrapped value
+        {
+            v = *self.value.lock().unwrap();
+        }
+        
+        println!("Before mut -> {}", v);
+        
+        //now seperately get again and update the source value
+        //as well as the local copy of the int
+        {
+            let mut vv = self.value.lock().unwrap();
+            *vv += delta;
+            v = *vv;
+            
+            println!("vv: {vv}");
+        }
+        // ... more code here that doesn't need the lock
+        
+        //doesn't help with warning: value assigned to `v` is never read
+        //println!("After mut -> {v}");
+        println!("After mut -> {}", v);
+    }
+    
+    fn printit(&self) {
+        //get the wrapped value
+        println!("Printit -> {}", *self.value.lock().unwrap());
+    }
+}
+
