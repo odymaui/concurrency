@@ -20,6 +20,8 @@ use std::pin::Pin;
 
 use std::io::{ stdout, Write};
 
+mod junk;
+
 //Originally FROM: https://www.slingacademy.com/article/introduction-to-concurrency-in-rust-understanding-the-basics/
 //but later added info from other sources..
 
@@ -154,21 +156,21 @@ fn main() {
 
         // note you should see no delay but in different orders!
         tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on( async {
-        tokio::spawn(say_hello());
-        tokio::spawn(say_world());
-        // Wait for a while to give the tasks time to run.
-        tokio::time::sleep(Duration::from_millis(300)).await;
+            tokio::spawn(say_hello());
+            tokio::spawn(say_world());
+            // Wait for a while to give the tasks time to run.
+            tokio::time::sleep(Duration::from_millis(300)).await;
 
-        for _ in 0..15 {
-            let handle1 = tokio::spawn(say_hello());
-            let handle2 = tokio::spawn(say_world());
+            for _ in 0..15 {
+                let handle1 = tokio::spawn(say_hello());
+                let handle2 = tokio::spawn(say_world());
+                
+                //note what happens if you comment these out...  no hello worlds!
+                let _ = handle1.await;
+                let _ = handle2.await;
             
-            //note what happens if you comment these out...  no hello worlds!
-            let _ = handle1.await;
-            let _ = handle2.await;
-        
-            println!("!");
-        }
+                println!("!");
+            }
 
         });
 
@@ -178,7 +180,15 @@ fn main() {
         v.printit();
         v.add(5);
         v.printit();
+        
+        println_header("Run old playground junk...");
 
+        tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on( async {
+
+        //just run old junk stuff
+        junk::junk_main().await;
+
+        });
 }
 
 fn println_header(header: &str) {
@@ -704,20 +714,20 @@ impl ThreadSafeInt {
         // ... more code here that doesn't need the lock
         
         //maintain a copy of the int for this method
-        let mut v = 0;
+        let mut _v = 0;
         //scope and unlock the wrapped value
         {
-            v = *self.value.lock().unwrap();
+            _v = *self.value.lock().unwrap();
         }
         
-        println!("Before mut -> {}", v);
+        println!("Before mut -> {}", _v);
         
         //now seperately get again and update the source value
         //as well as the local copy of the int
         {
             let mut vv = self.value.lock().unwrap();
             *vv += delta;
-            v = *vv;
+            _v = *vv;
             
             println!("vv: {vv}");
         }
@@ -725,7 +735,7 @@ impl ThreadSafeInt {
         
         //doesn't help with warning: value assigned to `v` is never read
         //println!("After mut -> {v}");
-        println!("After mut -> {}", v);
+        println!("After mut -> {}", _v);
     }
     
     fn printit(&self) {
